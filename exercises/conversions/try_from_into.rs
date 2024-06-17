@@ -27,8 +27,6 @@ enum IntoColorError {
     IntConversion,
 }
 
-// I AM NOT DONE
-
 // Your task is to complete this implementation and return an Ok result of inner
 // type Color. You need to create an implementation for a tuple of three
 // integers, an array of three integers, and a slice of integers.
@@ -38,18 +36,32 @@ enum IntoColorError {
 // that correct RGB color values must be integers in the 0..=255 range.
 
 // Tuple implementation
-impl TryFrom<(i16, i16, i16)> for Color {
+impl<T: TryInto<u8>> TryFrom<(T, T, T)> for Color {
     type Error = IntoColorError;
-    fn try_from(tuple: (i16, i16, i16)) -> Result<Self, Self::Error> {
-        match tuple {
-            (r @ 0..=255, g @ 0..=255, b @ 0..=255) => Ok(Color {
-                red: r as u8,
-                green: g as u8,
-                blue: b as u8,
-            }),
-            _ => Err(IntoColorError::IntConversion),
-        }
+    // fn try_from(tuple: (i16, i16, i16)) -> Result<Self, Self::Error> {
+    //     match tuple {
+    //         (r @ 0..=255, g @ 0..=255, b @ 0..=255) => Ok(Color {
+    //             red: r as u8,
+    //             green: g as u8,
+    //             blue: b as u8,
+    //         }),
+    //         _ => Err(IntoColorError::IntConversion),
+    //     }
+    // }
+     fn try_from(tuple: (T, T, T)) -> Result<Self, Self::Error> {
+        let (in_red, in_green, in_blue) = tuple;
+        try_from_color_values_helper(in_red, in_green, in_blue).map_err(|_| IntoColorError::IntConversion)
     }
+}
+
+fn try_from_color_values_helper<T: TryInto<u8>>(
+    in_red: T,
+    in_green: T,
+    in_blue: T) -> Result<Color, T::Error> {
+    let blue = in_blue.try_into()?;
+    let green = in_green.try_into()?;
+    let red = in_red.try_into()?;
+    Ok(Color { blue, green, red })
 }
 
 // Array implementation
@@ -203,5 +215,25 @@ mod tests {
     fn test_slice_insufficient_length() {
         let v = vec![0, 0];
         assert_eq!(Color::try_from(&v[..]), Err(IntoColorError::BadLen));
+    }
+    #[test]
+    fn test_tuple_correct_u32() {
+        let c: Result<Color, _> = (183, 65, 14 as u32).try_into();
+        assert!(c.is_ok());
+        assert_eq!(
+            c.unwrap(),
+            Color {
+                red: 183,
+                green: 65,
+                blue: 14
+            }
+        );
+    }
+    #[test]
+    fn test_tuple_correct_u32_overflow() {
+         assert_eq!(
+            Color::try_from((256, 1000, 14111111 as u32)),
+            Err(IntoColorError::IntConversion)
+        );
     }
 }
